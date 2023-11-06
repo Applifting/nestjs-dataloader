@@ -31,7 +31,7 @@ export interface NestDataLoader<ID, Type> {
  *     useClass: DataLoaderInterceptor,
  * },
  */
-const NEST_LOADER_CONTEXT_KEY: string = "NEST_LOADER_CONTEXT_KEY";
+export const NEST_LOADER_CONTEXT_KEY: string = "NEST_LOADER_CONTEXT_KEY";
 
 @Injectable()
 export class DataLoaderInterceptor implements NestInterceptor {
