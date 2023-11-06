@@ -1,22 +1,20 @@
 # NestJS Dataloader
 
-![Node.js CI](https://github.com/krislefeber/nestjs-dataloader/workflows/Node.js%20CI/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/krislefeber/nestjs-dataloader/badge.svg?branch=master)](https://coveralls.io/github/krislefeber/nestjs-dataloader?branch=master)
+![Node.js CI](https://github.com/Applifting/nestjs-dataloader/workflows/Node.js%20CI/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/Applifting/nestjs-dataloader/badge.svg?branch=master)](https://coveralls.io/github/krislefeber/nestjs-dataloader?branch=master)
 
 NestJS dataloader simplifies adding [graphql/dataloader](https://github.com/graphql/dataloader) to your NestJS project. DataLoader aims to solve the common N+1 loading problem.
 
+This is a fork of krislefeber/nestjs-dataloader with the following changes:
+
+- Replace generateDataLoader method in interface with getBatchFunction, reducing the need to import anything from the dataloader package and simplifying the code
+- Added `sortDataLoaderResultsByKey` convenience method, since some batching methods you can use (like `SELECT * IN (...)`) do not guarantee the order of the returned results to match the order of provided keys, which is essential for dataloader to work properly
+- Updated all dependencies to latest versions
+
 ## Installation
 
-Install with yarn
-
 ```bash
-yarn add nestjs-dataloader
-```
-
-Install with npm
-
-```bash
-npm install --save nestjs-dataloader
+npm i @applifting-io/nestjs-dataloader
 ```
 
 ## Usage
@@ -26,17 +24,19 @@ npm install --save nestjs-dataloader
 We start by implementing the `NestDataLoader` interface. This tells `DataLoader` how to load our objects.
 
 ```typescript
-import * as DataLoader from 'dataloader';
 import { Injectable } from '@nestjs/common';
-import { NestDataLoader } from 'nestjs-dataloader';
+import { NestDataLoader, DataLoaderBatchFunction } from '@applifting-io/nestjs-dataloader';
 ...
 
 @Injectable()
 export class AccountLoader implements NestDataLoader<string, Account> {
   constructor(private readonly accountService: AccountService) { }
 
-  generateDataLoader(): DataLoader<string, Account> {
-    return new DataLoader<string, Account>(keys => this.accountService.findByIds(keys));
+  getBatchFunction(): DataLoaderBatchFunction<string, Account> {
+    return (keys: string[]) => {
+      const results = await this.accountService.findByIds(keys);
+      return sortDataLoaderResultsByKey(keys, results, "id");
+    };
   }
 }
 ```
@@ -50,7 +50,7 @@ For each NestDataLoader we create, we need to provide it to our module.
 ```typescript
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import {DataLoaderInterceptor} from 'nestjs-dataloader'
+import { DataLoaderInterceptor } from 'nestjs-dataloader'
 ...
 
 @Module({
