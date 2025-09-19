@@ -6,11 +6,11 @@ import {
   InternalServerErrorException,
   NestInterceptor,
   Type,
-} from "@nestjs/common";
-import { APP_INTERCEPTOR, ModuleRef, ContextIdFactory } from "@nestjs/core";
-import { GqlExecutionContext } from "@nestjs/graphql";
-import DataLoader from "dataloader";
-import { Observable } from "rxjs";
+} from '@nestjs/common';
+import { APP_INTERCEPTOR, ContextIdFactory, ModuleRef } from '@nestjs/core';
+import { GqlExecutionContext } from '@nestjs/graphql';
+import DataLoader from 'dataloader';
+import { Observable } from 'rxjs';
 
 /**
  * This interface will be used to generate the initial data loader.
@@ -20,7 +20,7 @@ export interface NestDataLoader<ID, Type> {
   /**
    * Should return a new instance of dataloader each time
    */
-  getBatchFunction(): (keys: ID[]) => PromiseLike<Type[]>;
+  getBatchFunction(): (keys: readonly ID[]) => PromiseLike<Type[]>;
 }
 
 /**
@@ -31,7 +31,7 @@ export interface NestDataLoader<ID, Type> {
  *     useClass: DataLoaderInterceptor,
  * },
  */
-export const NEST_LOADER_CONTEXT_KEY: string = "NEST_LOADER_CONTEXT_KEY";
+export const NEST_LOADER_CONTEXT_KEY: string = 'NEST_LOADER_CONTEXT_KEY';
 
 @Injectable()
 export class DataLoaderInterceptor implements NestInterceptor {
@@ -56,12 +56,12 @@ export class DataLoaderInterceptor implements NestInterceptor {
                   strict: false,
                 });
                 return new DataLoader(
-                  dataLoaderImplementation.getBatchFunction()
+                  dataLoaderImplementation.getBatchFunction(),
                 );
               })();
             } catch (e) {
               throw new InternalServerErrorException(
-                `The loader ${type} is not provided` + e
+                `The loader ${type} is not provided` + e,
               );
             }
           }
@@ -79,29 +79,31 @@ export class DataLoaderInterceptor implements NestInterceptor {
 export const Loader = createParamDecorator(
   async (
     data: Type<NestDataLoader<any, any>>,
-    context: ExecutionContext & { [key: string]: any }
+    context: ExecutionContext & { [key: string]: any },
   ) => {
     const ctx: any = GqlExecutionContext.create(context).getContext();
     if (ctx[NEST_LOADER_CONTEXT_KEY] === undefined) {
       throw new InternalServerErrorException(`
-            You should provide interceptor ${DataLoaderInterceptor.name} globally with ${APP_INTERCEPTOR}
-          `);
+              You should provide interceptor ${DataLoaderInterceptor.name} globally with ${APP_INTERCEPTOR}
+            `);
     }
     return await ctx[NEST_LOADER_CONTEXT_KEY].getLoader(data);
-  }
+  },
 );
 
 /**
  * Utility function that sorts the results of the data loader by the key so that it's always in the correct order.
  */
 export const sortDataLoaderResultsByKey = <
-  T extends Record<string | number | symbol, any>
+  T extends Record<string | number | symbol, any>,
 >(
   keys: string[],
   items: T[],
-  key: keyof T
+  key: keyof T,
 ): T[] => {
   const keyToItemMap = new Map<string, T>();
   items.forEach((item) => keyToItemMap.set(item[key], item));
-  return keys.map((id) => keyToItemMap.get(id)).sort((a, b) => a[key] - b[key]);
+  return keys
+    .map((id) => keyToItemMap.get(id) as T)
+    .sort((a, b) => a[key] - b[key]);
 };
